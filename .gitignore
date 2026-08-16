@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+bench/results/*
+!bench/results/.gitkeep
+!bench/results/README.md
+*.egg-info/
+dist/
