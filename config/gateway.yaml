@@ -1,0 +1,72 @@
+# Gateway configuration. Backends are OpenAI-compatible HTTP endpoints.
+# Tiers are ordered cheapest -> strongest. The router picks a tier from the
+# request's estimated complexity; fallback walks up the tier list.
+
+backends:
+  - name: qwen-3b
+    tier: small
+    base_url: http://vllm-small:8000/v1
+    model: Qwen/Qwen2.5-3B-Instruct-AWQ
+    api_key_env: null
+    # USD per 1M tokens. Local models: electricity + GPU amortisation.
+    # 3070 at ~220 W, ~$0.12/kWh, ~40 tok/s -> roughly $0.18 per 1M output tokens.
+    price_input_per_m: 0.05
+    price_output_per_m: 0.18
+    max_context: 4096
+    timeout_s: 60
+
+  - name: llama-8b
+    tier: medium
+    base_url: http://vllm-large:8000/v1
+    model: hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4
+    api_key_env: null
+    price_input_per_m: 0.12
+    price_output_per_m: 0.45
+    max_context: 4096
+    timeout_s: 90
+
+  - name: groq-70b
+    tier: remote
+    base_url: https://api.groq.com/openai/v1
+    model: llama-3.3-70b-versatile
+    api_key_env: GROQ_API_KEY
+    # Groq list price; the free tier bills nothing but we account at list so cost comparisons are meaningful.
+    price_input_per_m: 0.59
+    price_output_per_m: 0.79
+    max_context: 32768
+    timeout_s: 60
+
+router:
+  # Complexity score in [0, 1]. < small_max -> small; < medium_max -> medium; else remote.
+  # Re-run `python bench/run_bench.py --modes auto` and `bench/audit_router.py` after changing the scorer.
+  small_max: 0.35
+  medium_max: 0.70
+  # Force a tier with header X-Route-Tier: small|medium|remote (used by the benchmark).
+  allow_tier_override: true
+
+resilience:
+  max_retries: 2
+  backoff_base_s: 0.5
+  backoff_max_s: 4.0
+  circuit_failure_threshold: 3
+  circuit_recovery_s: 30
+  health_check_interval_s: 10
+
+cache:
+  enabled: true
+  ttl_s: 3600
+
+tenants:
+  # Tenant used when no API key is presented. Set to null in production.
+  default: dev
+  keys:
+    dev:
+      api_key: dev-key
+      daily_token_budget: 2000000
+      requests_per_minute: 60
+      allowed_tiers: [small, medium, remote]
+    bench:
+      api_key: bench-key
+      daily_token_budget: 50000000
+      requests_per_minute: 600
+      allowed_tiers: [small, medium, remote]
