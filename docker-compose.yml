@@ -1,0 +1,108 @@
+# Full local stack for an 8 GB GPU (RTX 3070).
+#
+# The 3070 cannot hold both models at once, so the two vLLM services are behind
+# Compose profiles. Start ONE of them:
+#   docker compose --profile small up -d      # Qwen2.5-3B (AWQ)  ~2.5 GB VRAM
+#   docker compose --profile large up -d      # Llama-3.1-8B (AWQ) ~5.5 GB VRAM
+# The gateway treats the missing one as unhealthy and routes around it.
+#
+# Prerequisites: NVIDIA driver + nvidia-container-toolkit; `docker run --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi` must work.
+
+services:
+  gateway:
+    build: .
+    ports: ["8080:8080"]
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      GATEWAY_CONFIG: /app/config/gateway.yaml
+    volumes:
+      - ./config:/app/config:ro
+    depends_on: [redis]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports: ["6379:6379"]
+
+  vllm-small:
+    profiles: ["small"]
+    image: vllm/vllm-openai:latest
+    command: >
+      --model Qwen/Qwen2.5-3B-Instruct-AWQ
+      --quantization awq_marlin
+      --dtype half
+      --max-model-len 4096
+      --gpu-memory-utilization 0.45
+      --max-num-seqs 16
+      --enable-prefix-caching
+      --port 8000
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    ports: ["8001:8000"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ipc: host
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 30
+
+  vllm-large:
+    profiles: ["large"]
+    image: vllm/vllm-openai:latest
+    command: >
+      --model hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4
+      --quantization awq_marlin
+      --dtype half
+      --max-model-len 4096
+      --gpu-memory-utilization 0.90
+      --max-num-seqs 8
+      --enable-prefix-caching
+      --port 8000
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    ports: ["8002:8000"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ipc: host
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 30
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  hf-cache:
