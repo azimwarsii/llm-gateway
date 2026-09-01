@@ -1,0 +1,265 @@
+{
+ "title": "LLM Gateway",
+ "uid": "llm-gateway",
+ "schemaVersion": 39,
+ "time": {
+  "from": "now-30m",
+  "to": "now"
+ },
+ "refresh": "5s",
+ "panels": [
+  {
+   "id": 1,
+   "title": "Requests / s by backend & outcome",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (backend, outcome) (rate(gateway_requests_total[1m]))",
+     "legendFormat": "{{backend}} {{outcome}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    }
+   }
+  },
+  {
+   "id": 2,
+   "title": "p50 / p95 latency by backend",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum by (le, backend) (rate(gateway_request_latency_seconds_bucket[5m])))",
+     "legendFormat": "p50 {{backend}}",
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.95, sum by (le, backend) (rate(gateway_request_latency_seconds_bucket[5m])))",
+     "legendFormat": "p95 {{backend}}",
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    }
+   }
+  },
+  {
+   "id": 3,
+   "title": "Time to first token p95",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.95, sum by (le, backend) (rate(gateway_ttft_seconds_bucket[5m])))",
+     "legendFormat": "{{backend}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    }
+   }
+  },
+  {
+   "id": 4,
+   "title": "Tokens / s by backend",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (backend, direction) (rate(gateway_tokens_total[1m]))",
+     "legendFormat": "{{backend}} {{direction}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   }
+  },
+  {
+   "id": 5,
+   "title": "Cost (USD/hour, accounted)",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (backend) (rate(gateway_cost_usd_total[5m])) * 3600",
+     "legendFormat": "{{backend}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD"
+    }
+   }
+  },
+  {
+   "id": 6,
+   "title": "Cache hit ratio",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum(rate(gateway_cache_total{result=\"hit\"}[5m])) / sum(rate(gateway_cache_total[5m]))",
+     "legendFormat": "hit ratio",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    }
+   }
+  },
+  {
+   "id": 7,
+   "title": "Fallbacks / s",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 24,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (from_tier, to_tier) (rate(gateway_fallbacks_total[1m]))",
+     "legendFormat": "{{from_tier}} -> {{to_tier}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   }
+  },
+  {
+   "id": 8,
+   "title": "Backend up / circuit open",
+   "type": "stat",
+   "gridPos": {
+    "x": 12,
+    "y": 24,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "gateway_backend_up",
+     "legendFormat": "up {{backend}}",
+     "refId": "A"
+    },
+    {
+     "expr": "gateway_circuit_open",
+     "legendFormat": "circuit open {{backend}}",
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   }
+  },
+  {
+   "id": 9,
+   "title": "Route score distribution",
+   "type": "heatmap",
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 24,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (le) (rate(gateway_route_score_bucket[5m]))",
+     "legendFormat": "{{le}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    }
+   }
+  }
+ ]
+}
