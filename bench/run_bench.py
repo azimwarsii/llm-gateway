@@ -28,7 +28,7 @@ HERE = Path(__file__).parent
 async def one(
     client: httpx.AsyncClient, gw: str, key: str, mode: str, row: dict, sem: asyncio.Semaphore, max_tokens: int
 ) -> dict:
-    headers = {"Authorization": f"Bearer {key}"}
+    headers = {"Authorization": f"Bearer {key}", "X-Cache": "bypass"}  # a benchmark must not hit the cache
     if mode != "auto":
         headers["X-Route-Tier"] = mode
     body = {
@@ -106,7 +106,7 @@ def summarize(results: list[dict]) -> dict:
             "cost_per_1k_req_usd": round(cost / len(oks) * 1000, 4) if oks else None,
             "completion_tokens": sum(r.get("completion_tokens") or 0 for r in oks),
             "tier_mix": tiers,
-            "fallbacks": sum(r.get("fallbacks", 0) for r in oks),
+            "retries_and_fallbacks": sum(r.get("fallbacks", 0) for r in oks),
         }
     return out
 

@@ -105,6 +105,7 @@ class Engine:
         req: ChatCompletionRequest,
         tenant: Tenant,
         tier_override: str | None = None,
+        cache_bypass: bool = False,
     ) -> dict[str, Any]:
         decision: RouteDecision = route(req, self.cfg.router, tier_override)
         if decision.score >= 0:
@@ -112,7 +113,7 @@ class Engine:
         await self.tenants.check_request(tenant, decision.tier)
         body = req.model_dump(exclude_none=True)
 
-        key = cache_key(body, decision.tier) if cacheable(body) else None
+        key = cache_key(body, decision.tier) if (cacheable(body) and not cache_bypass) else None
         if key:
             hit = await self.cache.get(key)
             if hit:

@@ -113,3 +113,9 @@ async def test_health_models_metrics(client, mock):
     r = await client.get("/metrics")
     assert "gateway_requests_total" in r.text
 
+
+async def test_cache_bypass_header(client, mock):
+    route = mock.post(f"{SMALL}/chat/completions").mock(return_value=httpx.Response(200, json=completion("Paris")))
+    await client.post("/v1/chat/completions", json=simple())
+    r = await client.post("/v1/chat/completions", json=simple(), headers={"X-Cache": "bypass"})
+    assert r.json()["gateway"]["cache"] == "bypass" and route.call_count == 2

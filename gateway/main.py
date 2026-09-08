@@ -89,6 +89,7 @@ def build_app(cfg: GatewayConfig | None = None, backends: dict[str, OpenAICompat
         request: Request,
         t: Tenant = Depends(tenant),
         x_route_tier: str | None = Header(default=None),
+        x_cache: str | None = Header(default=None),
     ):
         engine: Engine = request.app.state.engine
         if req.stream:
@@ -102,7 +103,7 @@ def build_app(cfg: GatewayConfig | None = None, backends: dict[str, OpenAICompat
                     yield chunk
 
             return StreamingResponse(body(), media_type="text/event-stream")
-        return await engine.complete(req, t, x_route_tier)
+        return await engine.complete(req, t, x_route_tier, cache_bypass=(x_cache == "bypass"))
 
     @app.get("/v1/models")
     async def models(request: Request, t: Tenant = Depends(tenant)):
