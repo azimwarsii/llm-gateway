@@ -28,8 +28,8 @@ class BackendConfig(BaseModel):
 
 
 class RouterConfig(BaseModel):
-    small_max: float = 0.35
-    medium_max: float = 0.70
+    small_max: float = 0.12
+    medium_max: float = 0.30
     allow_tier_override: bool = True
 
 

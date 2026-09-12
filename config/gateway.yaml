@@ -38,9 +38,10 @@ backends:
 
 router:
   # Complexity score in [0, 1]. < small_max -> small; < medium_max -> medium; else remote.
+  # Calibrated on bench/prompts.jsonl: easy prompts score <= 0.05, medium ~0.05-0.29, hard >= 0.29.
   # Re-run `python bench/run_bench.py --modes auto` and `bench/audit_router.py` after changing the scorer.
-  small_max: 0.35
-  medium_max: 0.70
+  small_max: 0.12
+  medium_max: 0.30
   # Force a tier with header X-Route-Tier: small|medium|remote (used by the benchmark).
   allow_tier_override: true
 

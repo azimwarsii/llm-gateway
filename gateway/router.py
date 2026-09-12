@@ -18,8 +18,9 @@ from .schemas import ChatCompletionRequest
 from .tokens import count_tokens
 
 REASONING_HINTS = re.compile(
-    r"\b(prove|derive|step[- ]by[- ]step|analy[sz]e|compare|trade[- ]?offs?|design|architect|"
-    r"optimi[sz]e|debug|refactor|explain why|root cause|evaluate|critique|plan)\b",
+    r"\b(prove|derive|step[- ]by[- ]step|analy[sz]e|compare|trade[- ]?offs?|design|architect|implement|"
+    r"optimi[sz]e|debug|refactor|explain|root cause|evaluate|critique|plan|show your (steps|reasoning|work)|"
+    r"how (long|much|many)|migration|remediat)\w*",
     re.IGNORECASE,
 )
 CODE_HINTS = re.compile(
